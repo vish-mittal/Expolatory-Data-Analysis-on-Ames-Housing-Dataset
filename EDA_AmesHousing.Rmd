@@ -1,8 +1,6 @@
 ---
 title: "EDA on Ames Housing Dataset"
 author: "Vishal Shivkumar Mittal"
-studentid: "u3220242"
-date: "13/05/2022"
 output:
   html_document: default
   word_document: default
