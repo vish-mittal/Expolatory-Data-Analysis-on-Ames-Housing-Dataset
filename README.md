@@ -2,9 +2,9 @@
 
 Files Description:
 ------------------
-EDA_AmesHousing.Rmd => R code (.Rmd) file for running exploratory data analysis.
-train.csv => data file for reading the training data during data analysis.
-test.csv  => data file for reading the testing data during data analysis.
+1. EDA_AmesHousing.Rmd => R code (.Rmd) file for running exploratory data analysis.
+2. train.csv => data file for reading the training data during data analysis.
+3. test.csv  => data file for reading the testing data during data analysis.
 
 Notes:
 ------------------
