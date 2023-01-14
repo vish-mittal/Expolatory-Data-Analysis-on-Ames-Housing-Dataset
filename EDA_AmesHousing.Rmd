@@ -1,0 +1,928 @@
+---
+title: "EDA on Ames Housing Dataset"
+author: "Vishal Shivkumar Mittal"
+studentid: "u3220242"
+date: "13/05/2022"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+
+## Remove all variables from the environment.
+rm(list = ls())
+
+## clean Console  as command (CTRL + L)
+cat("\014")
+```
+
+```{r, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+
+## Get Working directory path
+for (i in 1:2){
+  Working_Dir <- dirname(rstudioapi::getActiveDocumentContext()$path)
+}
+
+## Set Working directory path
+setwd(Working_Dir)
+
+## print the working directory to check if the path is getting fetched properly
+## or not.
+getwd()
+
+```
+
+# Introduction & background:
+
+The major goal of this project was to identify the key factors impacting
+the sale price of residential property in Ames, Iowa. The Ames Housing
+dataset was investigated to attain this crucial goal. The Ames Housing
+dataset was created by Dean De Cock of Truman University after being
+collected by the Ames City Assessor's Office. Kaggle was utilised to get
+the compiled version of the Ames Housing dataset used in this study.
+
+The Ames Housing dataset contains 80 variables relating to residential
+properties sold in Ames, Iowa between 2006 and 2010, including the sale
+price (SalePrice) and 79 explanatory variables characterising the homes'
+features. A detailed description of the variables in this dataset can be
+obtained on Kaggle.
+
+# Problem Identification:
+
+### **Problem 1 -** Which is the impact of the neighborhood selection on the final price?
+
+This problem will give real estate brokers a general picture of the
+impact of the area on the sale price and, as a result, match consumer
+expectations.
+
+### **Problem 2 - How the price and number of sales evolved from 2006 to 2010?**
+
+The answers to this question will tell real estate professionals about
+the price and number of sales trends over the study period.
+
+### **Problem 3 - What would be the best season to buy a house?**
+
+Prices and demand are sometimes changed by seasons, which is an
+important factor to recognise in order to assist our customers in
+determining the best time to purchase a home.
+
+### **Problem 4 - What is the remodeling impact on the market price?**
+
+Our major purpose is to help our customers, and knowing the influence of
+remodelling on price, real estate agents may advise if it is preferable
+to remodel the house or sell it as is.
+
+### **Problem 5 - How much value will another room bring?**
+
+Answering this question will assist real estate professionals in
+determining how much a room will contribute to the price of a house,
+whether selling or purchasing.
+
+### **Problem 6 - What are the most highly correlated variables that best predict the sale price?**
+
+Understanding the feature corelation will assist us in determining the
+best predictor for our model.
+
+### **Problem 7 - Fit a linear model that accurately predicts the sale prices.**
+
+Fitting an accurate model can assist real estate agents in estimating
+consumer sale prices based on a few essential factors.
+
+# **Data Pre-processing:**
+
+The first step is to load all the required packages and read the
+datasets.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+# ========================================
+# Check and install the required packages 
+# ========================================
+
+# list of required packages
+requiredPackages <- c("tidyverse","rvest","knitr","ggplot2","stringr","modelr",
+                      "ggrepel","dplyr","corrplot","readr","DataExplorer","viridis",
+                      "tinytex")
+
+# check for each package and install if not present
+# and display in console if already installed and load the package
+for (pkg in requiredPackages){
+  
+  #if the package is not installed then install the package
+  if (!(pkg %in% rownames(installed.packages()))){
+    install.packages(pkg)
+  }
+  else{
+    # print on console that the package is already installed…
+    print(paste(pkg, "is already installed…"))
+    
+    #load the required package (i.e. library)
+    lapply(pkg, require, character.only = TRUE)
+  }
+}
+```
+
+The Ames Housing dataset has been divided into two parts: training
+(train.csv) and testing (test.csv) (test.csv). Both datasets were read
+into R and saved in the tibbles train and test using the tidyverse
+functions listed below.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+# Reading train and test data csv files
+train_data <- read.csv("train.csv")
+
+test_data <- read.csv("test.csv")
+```
+
+We will look at the top 5 rows of training data (i.e. train_data).
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# view training data (i.e. train_data)
+head(train_data)
+```
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# check the dimension of the data frame
+dim(train_data)
+```
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# check index of the data frame
+names(train_data)
+```
+
+After getting data we need to check the data-type of features to
+understand more about the data.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+sapply(train_data, typeof)
+```
+
+### Statistical Summary
+
+We will look at the statistical summary about our dataset. The summary()
+produces a numerical summary of each variable of a particular dataset.
+However for the brevity of the report, the summary has not been printed.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+summary(train_data)
+```
+
+### Interpreting the summary of data
+
+We have a lot of results! Each chunk of output (e.g., "MSSubClass,"
+"MoSold," "BsmtQual," "PoolArea," and so on) describes a single column
+in our data frame. The information we are shown for each column is
+determined on the type of data in that column. If it is not numeric,
+such as the "BsmtQual" column, it will just provide some general
+information about the data in the column. If the column is numeric, it
+will show the mean, median, 25th and 75th quartiles, minimum and maximum
+values.
+
+# Data Cleaning:
+
+It is the process of ensuring that your data is correct and usable by
+discovering and repairing any flaws in the data or missing data. The
+purpose of cleaning operations is to prevent difficulties caused by
+missing data during model training.
+
+Let's check if the data frame has missing data.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# check for NA cols in the training dataset
+NA_cols_in_train_data <- which(colSums(is.na(train_data)) > 0)
+sort(colSums(sapply(train_data[NA_cols_in_train_data], is.na)), decreasing = TRUE)
+```
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# check for NA cols in the testing dataset
+NA_cols_in_test_data <- which(colSums(is.na(test_data)) > 0)
+sort(colSums(sapply(train_data[NA_cols_in_test_data], is.na)), decreasing = TRUE)
+```
+
+We can observe that our data contains a large number of missing values.
+Before attempting to deal with missing values in an analysis, we must
+first determine which variables contain missing values and study the
+patterns of missing values. Let's look at the missing values.
+
+### Figure 1: plot a graph for missing values in training dataset
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+library(DataExplorer)
+
+plot_missing(train_data[NA_cols_in_train_data])
+```
+
+### Figure 2: plot a graph for missing values in testing dataset
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+library(DataExplorer)
+
+plot_missing(test_data[NA_cols_in_test_data])
+```
+
+We will eliminate any columns from our training dataset (`train_data`)
+and testing dataset (`test_data`) that have more than 40% missing
+values.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# remove columns with more than 40% NAs
+train_data <- train_data[, -which(colSums(is.na(train_data)) > 0.4 * nrow(train_data))]
+test_data <- test_data[, -which(colSums(is.na(test_data)) > 0.4 * nrow(test_data))]
+
+```
+
+# Impute Missing Data:
+
+Let's deal with the rest misssing values.
+
+### **LotFrontage: Linear feet of street connected to property**
+
+LotFrontage have 259 NAs in train dataset and training dataset. The most
+reasonable imputation seems to take the median per neighborhood.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+# for train dataset
+for (i in 1:nrow(train_data)){
+  if(is.na(train_data$LotFrontage[i])){
+    train_data$LotFrontage[i] <- as.integer(median(train_data$LotFrontage[train_data$Neighborhood==train_data$Neighborhood[i]],na.rm=TRUE)) 
+  }
+}
+
+# we will do the same thing for test dataset (i.e. take the median per neighborhood)
+for (i in 1:nrow(test_data)){
+  if(is.na(test_data$LotFrontage[i])){
+    test_data$LotFrontage[i] <- as.integer(median(test_data$LotFrontage[test_data$Neighborhood==test_data$Neighborhood[i]], na.rm=TRUE)) 
+  }
+}
+
+```
+
+### Garage variable
+
+There are five variables associated with garages in all. They all have
+81 NAs. So let's assume that none of the 81 rows have a garage area.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+# for training dataset
+train_data <- train_data %>% mutate(GarageYrBlt = ifelse(is.na(GarageYrBlt),0,GarageYrBlt))
+train_data$GarageType[is.na(train_data$GarageType)] <- 'No Garage'
+train_data$GarageFinish[is.na(train_data$GarageFinish)] <- 'None'
+train_data$GarageQual[is.na(train_data$GarageQual)] <- 'None'
+train_data$GarageCond[is.na(train_data$GarageCond)] <- 'None'
+
+# for testing dataset
+test_data <- test_data %>% mutate(GarageYrBlt = ifelse(is.na(GarageYrBlt),0,GarageYrBlt))
+test_data$GarageType[is.na(test_data$GarageType)] <- 'No Garage'
+test_data$GarageFinish[is.na(test_data$GarageFinish)] <- 'None'
+test_data$GarageQual[is.na(test_data$GarageQual)] <- 'None'
+test_data$GarageCond[is.na(test_data$GarageCond)] <- 'None'
+```
+
+### Basement variable
+
+There are 5 variables that are related to a house's basement. Two of
+them have 37 NAs in both datasets (`train_data` and `test_data`), while
+three have 38 NAs in both datasets.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+# for training dataset
+train_data$BsmtQual[is.na(train_data$BsmtQual)] <- 'None'
+train_data$BsmtCond[is.na(train_data$BsmtCond)] <- 'None'
+train_data$BsmtExposure[is.na(train_data$BsmtExposure)] <- 'None'
+train_data$BsmtFinType1[is.na(train_data$BsmtFinType1)] <- 'None'
+train_data$BsmtFinType2[is.na(train_data$BsmtFinType2)] <- 'None'
+
+# for testing dataset
+test_data$BsmtQual[is.na(test_data$BsmtQual)] <- 'None'
+test_data$BsmtCond[is.na(test_data$BsmtCond)] <- 'None'
+test_data$BsmtExposure[is.na(test_data$BsmtExposure)] <- 'None'
+test_data$BsmtFinType1[is.na(test_data$BsmtFinType1)] <- 'None'
+test_data$BsmtFinType2[is.na(test_data$BsmtFinType2)] <- 'None'
+```
+
+### Masonry veneer type, and masonry veneer area variables
+
+Masonry veneer type and Masonry veneer area have 8 NAs. If a house has a
+veneer area, it should also have a masonry veneer type.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+# for training dataset
+train_data$MasVnrType[is.na(train_data$MasVnrType)] <- 'None'
+train_data$MasVnrArea[is.na(train_data$MasVnrArea)] <-0
+
+# for testing dataset
+test_data$MasVnrType[is.na(test_data$MasVnrType)] <- 'None'
+test_data$MasVnrArea[is.na(test_data$MasVnrArea)] <-0
+```
+
+### Electrical variable
+
+Electrical has only 1 Na variable in the training dataset. So let's drop
+that particular row.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+train_data <- train_data %>% drop_na(Electrical)
+```
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# Let's have a final look whether we have any missing values or not in training data
+NA_cols_in_train_data <- which(colSums(is.na(train_data)) == 0)
+sort(colSums(sapply(train_data[NA_cols_in_train_data], is.na)), decreasing = TRUE)
+```
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# Let's have a final look whether we have any missing values or not in testing data
+NA_cols_in_test_data <- which(colSums(is.na(test_data)) == 0)
+sort(colSums(sapply(test_data[NA_cols_in_test_data], is.na)), decreasing = TRUE)
+```
+
+# Exploratory Data Analysis:
+
+### Problem 1 - Which is the impact of the neighborhood selection on the final price?
+
+After doing the analysis a new variable was created total square footage
+`TotalSF` It is the summation of `TotalBsmtSF` and `GrLivArea`
+
+```{r, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+# create a new variable `TotalSF` which is `TotalBsmtSF` + `GrLivArea` for training dataset
+# and testing dataset.
+train_data <- train_data %>% mutate(TotalSF = TotalBsmtSF + GrLivArea)
+test_data <- test_data %>% mutate(TotalSF = TotalBsmtSF + GrLivArea)
+```
+
+We will now create a scatter plot to understand the relationship between
+total square footage and sale price.
+
+```{r, echo=FALSE, results='show', warning=FALSE, message=FALSE}
+# scatter plot of total square footage by sale price
+ggplot(data = train_data, 
+       aes(x = TotalSF, y = SalePrice/1000, colour = SalePrice/1000)) +
+  geom_point(alpha = 0.8) +
+  geom_smooth(method = "loess", size = 0.5, colour = "red", fill = "lightgrey") +
+  ggtitle("Figure 3. Relationship between total square footage and sale price") +
+  labs(x = "Total Square Footage", y = "Sale Price in USD (Thousands)", 
+       colour = "Sale Price") +
+  theme_minimal() +
+  scale_color_viridis_b() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+The `Figure 3` shows strong positive linear relationship between
+`SalePrice` and `TotalSF` with five possible outliers modifying the
+trend line.
+
+```{r, echo=FALSE, results='show', warning=FALSE, message=FALSE}
+# check for outliers
+train_data %>% 
+  filter(TotalSF > 6000) %>% 
+  select(SaleCondition, TotalSF)
+
+```
+
+After exploring the outliers, it was decided that the observations that
+were not a *normal sale* condition would be dropped from **train**
+dataset and **test** dataset.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+train_data <- train_data %>% filter(SaleCondition == "Normal")
+test_data <- test_data %>% filter(SaleCondition == "Normal")
+```
+
+Using the filtered `train` data, we will create a scatter plot showing
+the relationship between the `TotalSF` and `SalePrice` and is show in
+**Figure 4** below.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# scatter plot of total square footage by sale price
+ggplot(data = train_data, 
+       aes(x = TotalSF, y = SalePrice/1000, colour = SalePrice/1000)) +
+  geom_point(alpha = 0.8) +
+  geom_smooth(method = "loess", size = 0.5, colour = "red", fill = "lightgrey") +
+  ggtitle("Figure 4. Relationship between total square footage and sale price") +
+  labs(x = "Total Square Footage", y = "Sale Price in USD (Thousands)", 
+       colour = "Sale Price") +
+  theme_minimal() +
+  scale_color_viridis_b() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+**Figure 5** below shows the distribution of square foot prices across
+neighborhood, where the influence of the neighborhood choice in the
+price is observed---being the more expensive neighborhoods : `NridgHT`,
+`StoneBr` and `NoRidge`. It is also possible to see the presence of
+outliers, and the inequality in the number of observations across
+neighborhoods.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+ggplot(data = train_data, 
+       aes(x = Neighborhood, y = SalePrice/1000, fill = Neighborhood)) +
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  geom_jitter(color="black", size=0.4, alpha=0.9) +
+  ggtitle("Figure 5. Square foot prices across neighborhoods") +
+  labs(x = "Neighborhood", y = "Sale Price in USD (Thousands)") +
+  geom_hline(yintercept = 200, linetype="dashed", color = "red") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+
+# Bin neighborhood by quality
+train_data <- train_data %>% group_by(Neighborhood) %>% 
+  mutate(MedianQuality = mean(OverallQual)) %>% 
+  ungroup() %>% 
+  mutate(NeighborhoodQuality = case_when(
+    MedianQuality > 7 ~ 'High',
+    between(MedianQuality, 5, 7) ~ 'Medium',
+    MedianQuality < 5 ~ 'Poor'
+  ))
+
+test_data <- test_data %>% group_by(Neighborhood) %>% 
+  mutate(MedianQuality = mean(OverallQual)) %>% 
+  ungroup() %>% 
+  mutate(NeighborhoodQuality = case_when(
+    MedianQuality > 7 ~ 'High',
+    between(MedianQuality, 5, 7) ~ 'Medium',
+    MedianQuality < 5 ~ 'Poor'
+  ))
+```
+
+## Problem 2 - How the price and number of sales evolved from 2006 to 2010?
+
+As we can see from the **Figure 3** and **Figure 4** sale price tends to
+increase as total square footage increases, a new variable was created
+that expresses sale price relative to total square footage.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+# we will create a new variable to present sale price per square foot (`SalePriceSF`)
+# total area is calculated as TotalBsmtSF + GrLivArea
+# and also create new `date` variable to combine month and year
+
+# For train dataset
+train_data <- train_data %>%
+  mutate(SalePriceSF = SalePrice / TotalSF,
+         date = lubridate::make_date(year = YrSold, month = MoSold))
+
+# For test dataset
+test_data <- test_data %>%
+  mutate(SalePriceSF = SalePrice / TotalSF,
+         date = lubridate::make_date(year = YrSold, month = MoSold))
+```
+
+**Figure 6** shows the trend in prices and number of sales between 2006
+and 2010.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+train_data %>%
+  group_by(date) %>%
+  summarise(Median_SalePriceSF = median(SalePriceSF)) %>%
+  ggplot(aes(x = date, y = Median_SalePriceSF)) +
+  geom_line() +
+  geom_smooth(colour = "red", fill = "lightgrey") +
+  ggtitle("Figure 6. Median sale price per square footage over time") +
+  labs(x = "Year", y = "Median sales price per square foot (USD)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+The above figure shows the median sales price per square foot slightly
+getting increased from 2006 to 2008, with a large spike in 2008, before
+showing a general decline from 2008 to 2010.
+
+## Problem 3 - What would be the best season to buy a house?
+
+To explore this question a new variable was created `SeasonSold`
+indicating which season was the best season to buy a property.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+
+# identifying months of season in United States
+spring <- 3:5
+summer <- 6:8
+fall <- 9:11
+winter <- c(12,1,2)
+
+# For training dataset
+# create new variable `SeasonSold`
+train_data <- train_data %>%
+  mutate(SeasonSold = if_else(MoSold %in% spring, "spring",
+                              if_else(MoSold %in% summer, "summer",
+                                      if_else(MoSold %in% fall, "fall",
+                                              "winter"))))
+
+# relevel seasons so they are in chronological order
+train_data$SeasonSold <- 
+  factor(train_data$SeasonSold, levels = c("winter", "spring", "summer", "fall"))
+
+# For test dataset
+# create new variable `SeasonSold`
+test_data <- test_data %>%
+  mutate(SeasonSold = if_else(MoSold %in% spring, "spring",
+                              if_else(MoSold %in% summer, "summer",
+                                      if_else(MoSold %in% fall, "fall",
+                                              "winter"))))
+
+# relevel seasons so they are in chronological order
+test_data$SeasonSold <- 
+  factor(test_data$SeasonSold, levels = c("winter", "spring", "summer", "fall"))
+```
+
+We will now create a violin plot to understand if there is any
+fluctuations in sale price across the four seasons.
+
+```{r,echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# create plot of `SalePriceSF` by YrSold and SeasonSold
+ggplot(data = train_data, 
+       aes(x = SeasonSold, y = SalePriceSF, fill = factor(YrSold))) +
+  geom_violin() +
+  stat_summary(fun.y = "median", colour = "red", geom = "point") +
+  facet_wrap(~YrSold, ncol = 5) +
+  scale_fill_viridis_d() +
+  ggtitle("Figure 7. Sale price per square foot across the seasons") +
+  labs(y = "Sale price per square foot (USD)", 
+       caption = "red dot represents the median value") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 45))
+```
+
+From the above figure we can see that there does appear to be some minor
+fluctuations in sale price from spring to summer across the years
+2006-2009, however this does not appear to be significant.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+train_data %>%
+  count(YrSold, SeasonSold) %>%
+  ggplot(aes(x = SeasonSold, y = n, fill = factor(YrSold))) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~YrSold, ncol = 5) +
+  scale_fill_viridis_d() +
+  ggtitle("Figure 8. Number of residential property sales according to season and year") +
+  labs(y = "Number of property sales") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45))
+```
+
+Further analysis off the reveals that summer season was the most
+favorable season from 2006-2009 (**Figure 8)**. The second highest sales
+occurred is in **spring** season. 2010 was the only year in which the
+number of houses sold (i.e. bought/purchased) was in spring season.
+
+## Problem 4 - What is the remodeling impact on the market price?
+
+To understand the effect of remodeling a property on the market price,
+we will create two new variables. `HouseAge` (numeric) and `Remodeled`
+(categorical) for both training dataset and testing dataset.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+
+# create a boolean variable `Remodeled`
+train_data <- train_data %>% 
+  mutate(Remodeled = ifelse(YearBuilt != YearRemodAdd, "Yes", "No"))
+
+test_data <- test_data %>% 
+  mutate(Remodeled = ifelse(YearBuilt != YearRemodAdd, "Yes", "No"))
+
+# create a `HouseAge` variable
+train_data <- train_data %>% 
+  mutate(HouseAge = YrSold - YearBuilt)
+
+test_data <- test_data %>% 
+  mutate(HouseAge = YrSold - YearBuilt)
+```
+
+To analyse the remodeling impact, it is necessary to understand the
+relationship between `SalePrice` and `HouseAge`.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+
+ggplot(data = train_data, 
+       aes(x = HouseAge, y = SalePrice/1000, colour = SalePrice/1000)) +
+  geom_point(alpha = 0.8) +
+  geom_smooth(method = "loess", size = 0.5, colour = "red", fill = "lightgrey") +
+  ggtitle("Figure 9. Relationship between sale price and the age of the houses") +
+  labs(x = "House Age", y = "Sale Price in USD (Thousands)", 
+       colour = "Sale Price") +
+  theme_minimal() +
+  scale_color_viridis_b() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5))
+```
+
+**Figure 9** above shows a negative relationship between the building
+age and price. But we can also see that there few number of houses which
+are more than 100 years old but have a higher sale price due to their
+historical value.
+
+To provide further context to these values, the number of residual
+property sales according to property type and year were also calculated
+and are presented in **Figure 10**.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+
+ggplot(data = train_data) +
+  geom_bar(aes(x=HouseAge, y=SalePrice/1000), stat="identity") +
+  ggtitle("Figure 10. Relationship between sale price and the age of the houses") +
+  labs(x = "House Age", y = "Sale Price in USD (Thousands)", 
+       colour = "Sale Price") +
+  theme_minimal() +
+  scale_color_viridis_b() +
+  theme(
+        plot.title = element_text(hjust = 0.5))
+```
+
+## Problem 5 - How much value will another room bring?
+
+The **Figure 11** below describe a weak but positive relationship
+between the total number of rooms and the final price. For example,
+there are also possible outliers, a house with 6 rooms and a price below
+\$200000 that could affect our estimations.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# create a scatter plot with a trend line
+ggplot(data = train_data, 
+       aes(x = BedroomAbvGr, y = SalePrice/1000, colour = SalePrice/1000)) +
+  geom_point(alpha = 0.8) +
+  geom_smooth(method = "lm", size = 0.5, colour = "red", fill = "lightgrey") +
+  ggtitle("Figure 11. Relationship between sale price and total number of rooms") +
+  labs(x = "Number of rooms", y = "Sale Price in USD (Thousands)", 
+       colour = "Sale Price") +
+  theme_minimal() +
+  scale_color_viridis_b() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+```
+
+The overall distribution of number of rooms (i.e. bedrooms) appears to
+have remained relatively similar across the 5 years, with 3 bedroom
+properties consistently observing more sales, followed by 2 and 4
+bedrooms (**Figure 12**).
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# create a bar plot of number of bedrooms by year
+train_data %>%
+  count(YrSold, BedroomAbvGr) %>%
+  group_by(YrSold) %>%
+  ggplot(aes(x = BedroomAbvGr, y = n, fill = factor(YrSold))) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~YrSold, ncol = 5) +
+  scale_fill_viridis_d() +
+  ggtitle("Figure 12. Number of residential property sales according to bedrooms and year") +
+  labs(y = "Number of property sales", x = "Number of bedrooms above grade (ground)") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5))
+```
+
+The sale price for houses with varying number of bedrooms was also
+explored and showed that sale price tends to increase from 1 bedroom to
+4 bedrooms (**Figure 13**).
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+ggplot(data = train_data, 
+       aes(x = factor(BedroomAbvGr), y = SalePrice/1000, fill = factor(BedroomAbvGr))) +
+  geom_boxplot() +
+  scale_fill_viridis_d() +
+  ggtitle("Figure 13. Sale price according to number of bedrooms") +
+  labs(x = "Number of bedrooms above grade (ground)", y = "Sale price in USD (thousands)") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5))
+```
+
+# **Further Pre-processing:**
+
+Before going on to the next step, we introduced new variables to reduce
+the number of predictors in our model. PorcheArea and TotalBath are the
+variables in question. Furthermore, the test set's missing values were
+checked and processed as follows:
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# Create one variable for total porche area
+train_data <- train_data %>% 
+  mutate(PorcheArea = OpenPorchSF + EnclosedPorch + ScreenPorch)
+
+test_data <- test_data %>% 
+  mutate(PorcheArea = OpenPorchSF + EnclosedPorch + ScreenPorch)
+
+#Create TotalBath - total bathrooms in the property
+train_data <- train_data %>%
+  mutate(TotalBath = BsmtFullBath  + BsmtHalfBath + FullBath + HalfBath)
+
+test_data <- test_data %>%
+  mutate(TotalBath = BsmtFullBath  + BsmtHalfBath + FullBath + HalfBath)
+
+# Missing values in test dataset
+test_data$BsmtFullBath <- ifelse(is.na(test_data$BsmtFullBath), 0, test_data$BsmtFullBath)
+test_data$BsmtHalfBath <- ifelse(is.na(test_data$BsmtHalfBath), 0, test_data$BsmtHalfBath)
+test_data$GarageCars <- ifelse(is.na(test_data$GarageCars), 0, test_data$GarageCars)
+
+test_data <- test_data %>%
+  mutate(TotalBath = BsmtFullBath + BsmtHalfBath + FullBath + HalfBath)
+```
+
+We needed to examine the skewness of the data to improve model
+performance. Figures 14 and 15 depict the distribution of the
+`SalePrice` after and before the log transformation, respectively.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# create plot of distribution of sale price
+ggplot(data = train_data, 
+       aes(x = SalePrice/1000)) + 
+  geom_histogram(fill = "lightblue", colour = "darkblue") +
+  theme_minimal() +
+  ggtitle("Figure 14. Distribution of sale price") +
+  labs(x = "Sale Price in USD (thousands)", y = "Number of observations") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# create plot of distribution of sale price
+ggplot(data = train_data, 
+       aes(x = log(SalePrice/1000))) + 
+  geom_histogram(fill = "lightblue", colour = "darkblue") +
+  theme_minimal() +
+  ggtitle("Figure 15. Distribution of Log(sale price)") +
+  labs(x = "Log of Sale Price", y = "Number of observations") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+The `SalePrice` variable is not normally distributed, therefore, will
+used `SalePriceLog` as our objective variable when fitting the model.
+
+```{r, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+train_data <- train_data %>% 
+  mutate(SalePriceLog = log(SalePrice))
+
+test_data <- test_data %>% 
+  mutate(SalePriceLog = log(SalePrice))
+```
+
+## Problem 6 - What are the most highly correlated variables that best predict the sale price?
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# get the list of numeric columns in training data set
+numeric_features <- names(select_if(train_data, is.numeric))
+
+# create a new data frame based on the numeric features
+numeric_data <- train_data[, numeric_features]
+
+# correlations of all numeirc variables
+cor_numVar <- cor(numeric_data, use = "pairwise.complete.obs")
+
+# sort on decreasing correlations with sale price
+cor_sorted <- as.matrix(sort(cor_numVar[, "SalePrice"], decreasing = TRUE))
+
+# we select only high corelations
+CorHigh <- names(which(apply(cor_sorted, 1, function(x) abs(x)>0.5)))
+cor_numVar <- cor_numVar[CorHigh, CorHigh]
+
+```
+
+#### Figure 16 - Correlation heatmap
+
+The figure shows the correlation coefficients between all numeric
+variables
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# display correlation heatmap
+corrplot.mixed(cor_numVar, tl.cex = 0.5, tl.pos = "lt",
+               order = "AOE",
+               number.cex= 7/ncol(cor_numVar))
+```
+
+## Problem 7 - Fit a linear model that accurately predicts the sale prices.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# Linear model 1
+model_1 <- train_data %>% 
+  lm(formula = SalePriceLog ~ OverallQual + TotalSF + GarageCars + YearBuilt + TotalBath + TotRmsAbvGrd + YearRemodAdd, data = .)
+
+summary(model_1)
+```
+
+The fitted model above (i.e. model_1) recorded and **RMSE** of 0.1358
+and a **R-square** of 0.8639
+
+Since the p-value of the variable `TotRmsAbvGrd` is high, we will remove
+this variable and consider a new variable `NeighborhoodQuality` as a
+categorical variable for our next model.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+# Linear model 2
+model_2 <- train_data %>% 
+  lm(formula = SalePriceLog ~ OverallQual + TotalSF + GarageCars + YearBuilt + TotalBath + NeighborhoodQuality + YearRemodAdd, data = .)
+
+summary(model_2)
+```
+
+The fitted model above (i.e. model_2) recorded and **RMSE** of 0.1349
+and a **R-square** of 0.8658 showed a very slight improvement.
+
+# Evaluation:
+
+Now we will test both the models on the testing dataset. The models are
+tested on the `test_data` dataset and the results are stored in
+variable.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+
+# Predict models
+predicted_model_1 <- model_1 %>% predict(test_data)
+predicted_model_2 <- model_2 %>% predict(test_data)
+```
+
+### RMSE (Root Mean Squared Error) =
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+paste("Model 1 RMSE =", round(modelr::rmse(model_1, test_data), 4))
+```
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+paste("Model 2 RMSE =", round(modelr::rmse(model_2, test_data), 4))
+```
+
+### R-Square =
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+paste("Model 1 R-square =", round(modelr::rsquare(model_1, test_data), 4))
+```
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+paste("Model 2 R-square =", round(modelr::rsquare(model_2, test_data), 4))
+```
+
+On evaluating both the models on test data, the model performed better
+on test data.
+
+```{r, echo=TRUE, results='show', warning=FALSE, message=FALSE}
+observed_SalePriceLog <- test_data$SalePriceLog
+diff <- abs(observed_SalePriceLog - predicted_model_2)
+
+ggplot(data = NULL, aes(x = observed_SalePriceLog, y = predicted_model_2)) +
+  geom_point(aes(colour = diff)) +
+  geom_abline() +
+  ggtitle("Figure 17. Observed and predicted log-transformed sale price from model 2") +
+  labs(x = "Observed Sale Price (Log)", y = "Predicted Sale Price (Log)") +
+  scale_colour_gradient(high = "pink", low = "blue") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+# Conclusion:
+
+The following key findings were identified from the exploratory data
+analysis on the AMES housing dataset.
+
+1.  Total square footage (**TotalSF**) and sale price has a strong
+    positive association.
+
+2.  While the quantity of sales was higher during the summer, the season
+    had no effect on the sale price.
+
+3.  The relationship between price and total area was substantial and
+    positive, implying that larger residences are more valuable.
+
+4.  The relationship between building age and price was inverse.
+    Nonetheless, houses older than a century appeared to appreciate in
+    value with time.
+
+5.  Remodeling is an important aspect in enhancing the value of a home.
+
+6.  The final model selected contianed RMSE of 0.1314
+
+The model could be improved in the future by examining and addressing
+outliers and other strange datapoints.
+
+# References:
+
+1.  *House Prices - Advanced Regression Techniques \| Kaggle*. (n.d.).
+    Kaggle Website. Retrieved May 13, 2022, from
+    <https://www.kaggle.com/c/house-prices-advanced-regression-techniques/data>
+
+2.  *House Prices - Advanced Regression Techniques \| Kaggle*. (n.d.-b).
+    Kaggle. Retrieved May 13, 2022, from
+    <https://www.kaggle.com/c/house-prices-advanced-regression-techniques/notebooks?sortBy=hotness&group=everyone&pageSize=20&competitionId=5407&language=R>
+
+3.  *UClearn*. (n.d.). University of Canberra (UCLearn Website).
+    Retrieved May 13, 2022, from
+    <https://uclearn.canberra.edu.au/courses/11630/modules>
+
+4.  Seth, K. (2021, December 13). *EDA and Multiple Linear Regression on
+    Boston Housing in R*. Medium. Retrieved May 12, 2022, from
+    <https://medium.com/analytics-vidhya/eda-and-multiple-linear-regression-on-boston-housing-in-r-270f858dc7b>
